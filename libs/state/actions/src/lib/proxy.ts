@@ -9,19 +9,22 @@ import { EffectMap, KeysOf, RxActions, SubjectMap, ValuesOf } from './types';
  * @param subjects
  * @param transforms
  */
-export function actionProxyHandler<T extends object, U extends object>({
+export function actionProxyHandler<
+  Type extends object,
+  Transforms extends object,
+>({
   subjectMap,
   transformsMap,
   effectMap,
   errorHandler = null,
 }: {
-  subjectMap: SubjectMap<T>;
-  transformsMap?: U;
-  effectMap: EffectMap<T>;
+  subjectMap: SubjectMap<Type>;
+  transformsMap?: Transforms;
+  effectMap: EffectMap<Type>;
   errorHandler: ErrorHandler | null;
-}): ProxyHandler<RxActions<T, U>> {
-  type KeysOfT = KeysOf<T>;
-  type ValuesOfT = ValuesOf<T>;
+}): ProxyHandler<RxActions<Type, Transforms>> {
+  type KeysOfT = KeysOf<Type>;
+  type ValuesOfT = ValuesOf<Type>;
 
   function getEventEmitter(prop: KeysOfT): Subject<ValuesOfT> {
     if (!subjectMap[prop]) {
@@ -46,8 +49,8 @@ export function actionProxyHandler<T extends object, U extends object>({
     apply(_: RxActions<T, U>, __: any, props: [T]): any {
       props.forEach((slice) =>
         Object.entries(slice).forEach(([k, v]) =>
-          dispatch(v as any, k as any as KeysOfT)
-        )
+          dispatch(v as any, k as any as KeysOfT),
+        ),
       );
     },
     get(_, property: string) {
@@ -61,7 +64,7 @@ export function actionProxyHandler<T extends object, U extends object>({
             merge(
               ...props.map((k) => {
                 return getEventEmitter(k);
-              })
+              }),
             );
         }
         // the user wants to get a single EventEmitter as observable `eventEmitter.prop$`
@@ -78,7 +81,7 @@ export function actionProxyHandler<T extends object, U extends object>({
           slicedPropName.slice(1)) as KeysOfT;
         return (
           behaviour: OperatorFunction<T[KeysOfT], T[KeysOfT]>,
-          sf: (v: T[KeysOfT]) => void
+          sf: (v: T[KeysOfT]) => void,
         ) => {
           const sub = getEventEmitter(propName).pipe(behaviour).subscribe(sf);
           effectMap[propName] = sub;

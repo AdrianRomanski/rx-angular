@@ -3,12 +3,13 @@ import { Subject } from 'rxjs';
 import { actionProxyHandler } from './proxy';
 import { Actions, ActionTransforms, EffectMap, RxActions } from './types';
 
-type SubjectMap<T> = { [K in keyof T]: Subject<T[K]> };
+type SubjectMap<Type> = { [Key in keyof Type]: Subject<Type[Key]> };
 
 /**
  * @deprecated - use rxActions instead
  *
- * This class creates RxActions bound to Angular's DI life-cycles. This prevents memory leaks and optionally makes the instance reusable across the app.
+ * This class creates RxActions bound to Angular DI life-cycles.
+ * This prevents memory leaks and optionally makes the instance reusable across the app.
  * The function has to be used inside an injection context.
  * If the consumer gets destroyed also the actions get destroyed automatically.
  *
@@ -22,13 +23,16 @@ type SubjectMap<T> = { [K in keyof T]: Subject<T[K]> };
  * }
  */
 @Injectable()
-export class RxActionFactory<T extends Partial<Actions>> implements OnDestroy {
-  private subjects: SubjectMap<T>[] = [] as SubjectMap<T>[];
+export class RxActionFactory<Type extends Partial<Actions>>
+  implements OnDestroy
+{
+  private subjects: SubjectMap<Type>[] = [] as SubjectMap<Type>[];
 
   constructor(@Optional() private readonly errorHandler?: ErrorHandler) {}
 
-  /*
-   * Returns a object based off of the provided typing with a separate setter `[prop](value: T[K]): void` and observable stream `[prop]$: Observable<T[K]>`;
+  /**
+   * Returns an object based off of the provided typing with a separate setter
+   * `[prop](value: T[K]): void` and observable stream `[prop]$: Observable<T[K]>`;
    *
    * { search: string } => { search$: Observable<string>, search: (value: string) => void;}
    *
@@ -52,7 +56,8 @@ export class RxActionFactory<T extends Partial<Actions>> implements OnDestroy {
    * actions.search = "string"; // not a setter. the proxy will throw an error pointing out that you have to call it
    *
    * @param transforms - A map of transform functions to apply on transformations to actions before emitting them.
-   * This is very useful to clean up bloated templates and components. e.g. `[input]="$event?.target?.value"` => `[input]="$event"`
+   * This is very useful to clean up bloated templates and components.
+   * e.g. `[input]="$event?.target?.value"` => `[input]="$event"`
    *
    * @example
    * function coerceSearchActionParams(e: Event | string | number): string {
@@ -70,23 +75,25 @@ export class RxActionFactory<T extends Partial<Actions>> implements OnDestroy {
    * actions.search$.subscribe(); // string Observable
    *
    */
-  create<U extends ActionTransforms<T> = {}>(transforms?: U): RxActions<T, U> {
-    const subjectMap: SubjectMap<T> = {} as SubjectMap<T>;
-    const effectMap: EffectMap<T> = {} as EffectMap<T>;
+  create<Transforms extends ActionTransforms<Type> = object>(
+    transforms?: Transforms,
+  ): RxActions<Type, Transforms> {
+    const subjectMap: SubjectMap<Type> = {} as SubjectMap<Type>;
+    const effectMap: EffectMap<Type> = {} as EffectMap<Type>;
     this.subjects.push(subjectMap);
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     function signals(): void {}
 
     return new Proxy(
-      signals as any as RxActions<T, U>,
+      signals as any as RxActions<Type, Transforms>,
       actionProxyHandler({
         subjectMap,
         effectMap,
         transformsMap: transforms,
         errorHandler: this.errorHandler ?? null,
-      })
-    ) as any as RxActions<T, U>;
+      }),
+    ) as any as RxActions<Type, Transforms>;
   }
 
   destroy() {
@@ -97,7 +104,8 @@ export class RxActionFactory<T extends Partial<Actions>> implements OnDestroy {
 
   /**
    * @internal
-   * Internally used to clean up potential subscriptions to the subjects. (For Actions it is most probably a rare case but still important to care about)
+   * Internally used to clean up potential subscriptions to the subjects.
+   * For Actions, it is most probably a rare case but still important to care about
    */
   ngOnDestroy() {
     this.destroy();
